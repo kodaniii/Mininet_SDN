@@ -189,6 +189,7 @@ def _send_data(ip):
             #save data to local file
             with open('save_update_data', 'w') as file:
                 file.write(data)
+            print('msg save completed.')
             
             time.sleep(1)
         except Exception as e:
