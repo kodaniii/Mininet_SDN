@@ -28,6 +28,7 @@ def _send_data(ip, data):
 if __name__ == '__main__':
     if len(sys.argv) != 2:
         print("Incorrect parameter input, input argv len = %s" % len(sys.argv))
+        sys.exit(0)
     
     #key = ceph_id, value = ip
     ceph_to_ip = {'1': '192.168.206.181', 
