@@ -67,6 +67,7 @@ class SimpleSwitch13(app_manager.RyuApp):
             for dp in self.datapaths.values():
                 self.port_features.setdefault(dp.id, {})
                 self._request_stats(dp)
+            print("host_info = %s" % self.host_info)
             hub.sleep(10)
 
 
@@ -243,10 +244,10 @@ class SimpleSwitch13(app_manager.RyuApp):
                                                   'packet_loss': 0,
                                                   'cpu': 0, 
                                                   'mem': 0, 
-                                                  'io': 0})
+                                                  'io': {}})
             #print('_save_udp:osdinfo[key]', osdinfo[key])
             #delay, cpu, mem, io = eval(osdinfo[key])
-            delay, packet_loss, delay_jitter, cpu, mem, io = data
+            delay, packet_loss, delay_jitter, cpu, mem, io, _ip_address = data
             hostinfo[port_to_ip[key]]['delay']= delay
             hostinfo[port_to_ip[key]]['delay_jitter']= delay_jitter
             hostinfo[port_to_ip[key]]['packet_loss']= packet_loss
@@ -310,7 +311,7 @@ class SimpleSwitch13(app_manager.RyuApp):
             if key not in port_to_ip:
                 self.logger.info("_save_ipfreebw: cannot found self.port_to_ip[%s], continue...", key)
                 continue
-            hostinfo.setdefault(port_to_ip[key], {'bw':0, 'delay':0, 'cpu':0, 'mem':0, 'io':0})
+            hostinfo.setdefault(port_to_ip[key], {'bw':0, 'delay':0, 'cpu':0, 'mem':0, 'io':{}})
             hostinfo[port_to_ip[key]]['bw'] = free_bandwidth[key]
             self.logger.info("self.host_info[%s]['bw'] = %s insert completed.", key, free_bandwidth[key])
         self.logger.info('***_save_ipfreebw done***')

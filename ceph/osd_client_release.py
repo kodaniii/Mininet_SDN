@@ -1,7 +1,7 @@
 #  Environment: python 3.8.10 or 3.6.8, python2 can't use this file
 #  Author:     jiang
 #  CreateTime: 2024/6/30
-#  UpdateTime: 2024/7/2
+#  UpdateTime: 2024/7/6
 
 # This is released version
 
@@ -155,12 +155,14 @@ def _get_io():
         after_write_bytes = psutil.disk_io_counters(perdisk=True)[devices[key]].write_bytes
         read_bytes = float(after_read_bytes - pre_read_bytes)/1024
         write_bytes = float(after_write_bytes - pre_write_bytes)/1024
-        osd_io[osd_num]['r'] = read_bytes
-        osd_io[osd_num]['w'] = write_bytes
-        total_kbytes = float(read_bytes + write_bytes)/1024
-        total_kbytes = round(total_kbytes, 2)
-        osd_io[osd_num] = total_kbytes  #write + read kB/s
-    print('osd_io[%s] = %s KB/s' % (osd_num, osd_io))
+        #osd_io[osd_num]['r'] = read_bytes
+        #osd_io[osd_num]['w'] = write_bytes
+        #total_kbytes = float(read_bytes + write_bytes)/1024
+        #total_kbytes = round(total_kbytes, 2)
+        #osd_io[osd_num] = total_kbytes  #write + read kB/s
+        osd_io[osd_num]['r'] = round(read_bytes / 1024, 2)
+        osd_io[osd_num]['w'] = round(write_bytes / 1024, 2)
+    print('osd_io[%s] = %s KB/s' % (osd_num, osd_io[osd_num]))
     print('***_get_io() done***')
     return osd_io
 
@@ -178,7 +180,7 @@ def _send_data(ip):
             io = _get_io()
             #data = str((avg_delay, cpu, mem, io))
             #data = str((avg_delay, packet_loss, delay_jitter_old, delay_jitter))
-            data = str((avg_delay, packet_loss, delay_jitter, cpu, mem, io))
+            data = str((avg_delay, packet_loss, delay_jitter, cpu, mem, io, ip))
             if not data:
                 print('not data, break')
                 break
