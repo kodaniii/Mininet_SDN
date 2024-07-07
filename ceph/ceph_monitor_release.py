@@ -1,7 +1,7 @@
 #  Environment: python 3.8.10 or 3.6.8, python2 can't use this file
 #  Author:     jiang
 #  CreateTime: 2024/7/3
-#  UpdateTime: 2024/7/6
+#  UpdateTime: 2024/7/7
 
 # This is released version
 
@@ -206,30 +206,30 @@ def main():
         '192.168.207.184': '192.168.206.184',
     }
 
+    print("optimize_mode = %s, optimize_range = %s, HP_flag = %s, HW_flag = %s" 
+            % (optimize_mode, optimize_range, HP_flag, HW_flag))
+    
+    osd_info = {}
+    osd_to_ip = get_osd_id_to_ip_addr()   
+    #osd_to_ip = {0: '192.168.207.184', 1: '192.168.207.181', 2: '192.168.207.183', 3: '192.168.207.182', 
+                 #4: '192.168.207.184', 5: '192.168.207.182', 6: '192.168.207.183', 7: '192.168.207.181'}
+
+    for _key, _value in osd_to_ip.items():
+        osd_to_ip[_key] = ip_convert[osd_to_ip[_key]]
+
+    print("osd_to_ip = %s" % osd_to_ip)
+    optimize_osd_range, pgs_per_osd = get_osd_range(optimize_range)
+    print("optimize_osd_range = %s, pgs_per_osd = %s" % (optimize_osd_range, pgs_per_osd))
+    
+    redis_ip_list = []
+    redis_ip_value = {} #duplicate results filter
+
+    for _key, _value in osd_to_ip.items():
+        redis_ip_value.setdefault(_value, None)
+
     while True:
-        print("optimize_mode = %s, optimize_range = %s, HP_flag = %s, HW_flag = %s" 
-              % (optimize_mode, optimize_range, HP_flag, HW_flag))
-        
-        osd_info = {}
-        osd_to_ip = get_osd_id_to_ip_addr()   
-        #osd_to_ip = {0: '192.168.207.184', 1: '192.168.207.181', 2: '192.168.207.183', 3: '192.168.207.182', 
-                     #4: '192.168.207.184', 5: '192.168.207.182', 6: '192.168.207.183', 7: '192.168.207.181'}
 
-        for _key, _value in osd_to_ip.items():
-            osd_to_ip[_key] = ip_convert[osd_to_ip[_key]]
-
-        print("osd_to_ip = %s" % osd_to_ip)
-        optimize_osd_range, pgs_per_osd = get_osd_range(optimize_range)
-        print("optimize_osd_range = %s, pgs_per_osd = %s" % (optimize_osd_range, pgs_per_osd))
-        
         # evertime update's interval is 60s
-        
-        redis_ip_list = []
-        redis_ip_value = {} #duplicate results filter
-
-        for _key, _value in osd_to_ip.items():
-            redis_ip_value.setdefault(_value, None)
-        
         for i in range(times):
             get_osd_info_dic(osd_to_ip, osd_info, times, optimize_range, optimize_osd_range, pgs_per_osd, redis_ip_list, redis_ip_value)
             print("----------------osd info is----------------")
@@ -238,6 +238,5 @@ def main():
             time.sleep(7)
     
     
-
 if __name__ == '__main__':
         main()
