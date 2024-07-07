@@ -63,7 +63,7 @@ def get_osd_range(optimize_range):
 # get osd and its' bandwidth for <length> times
 #parameter[:6] = {0: '192.168.206.184', 1: '192.168.206.181', 2: '192.168.206.183', 3: '192.168.206.182', 4: '192.168.206.184', 5: '192.168.206.182', 6: '192.168.206.183', 7: '192.168.206.181'}, 
 #             {}, 5, ceph-node, [7, 1, 5, 3, 6, 2, 4, 0], {1: 80, 7: 104, 3: 109, 5: 99, 2: 96, 6: 88, 0: 103, 4: 89}
-def get_osd_info_dic(osd_to_ip, osd_info, times, optimize_range, need_optimize_osd_range, pgs_per_osd, redis_ip_list, redis_ip_value):
+def get_osd_info_dic(osd_to_ip, osd_info, times, optimize_range, need_optimize_osd_range, pgs_per_osd, ip_addr_all, redis_ip_value):
     print('***get_osd_info_dic()***')
     
     print("parameter = %s, %s, %s, %s, %s, %s"
@@ -84,16 +84,74 @@ def get_osd_info_dic(osd_to_ip, osd_info, times, optimize_range, need_optimize_o
                 #print("len(osd_info[%s][%s]) = %s" % (osd_id, x, len(osd_info[osd_id][x])))
                 if len(osd_info[osd_id][x]) == times:
                     osd_info[osd_id][x].pop(0)
+    
+    for ip_addr in ip_addr_all:
+        print("ip_addr = %s" % ip_addr)
+        redis_value = r.get(ip_addr)
+        redis_value = redis_value.decode('utf-8')
+        
+        print("redis_value = %s" % redis_value)
+        
+        while redis_value == redis_ip_value[ip_addr]:
+            redis_value = r.get(str(ip_addr))
+            redis_value = redis_value.decode('utf-8')
+            print("FROM Redis: ip = %s, value = %s" % (ip_addr, redis_value))
 
-    redis_ip_list = []  #need modify this
+            if redis_value is None:
+                continue
+            
+            print("redis_value == redis_ip_value[%s] is %s, wait..." % (ip_addr, redis_value))
+            time.sleep(10)
+            
+        redis_ip_value[ip_addr] = redis_value
+
+        osd_info_dic = eval(redis_value)
+        print('osd_info_dic =', osd_info_dic)
+        #osd_info_dic = (9999.97, 0.06, 0, 0.034, 8.2, 93.6, {7: {'r': 0.0, 'w': 0.0}, 1: {'r': 0.0, 'w': 0.0}})
+        
+        for osd_id in osd_info_dic[6]:
+            if osd_id not in need_optimize_osd_range:
+                print("osd_id = %s not in need_optimize_osd_range, continue..." % osd_id)
+                continue
+            
+            print("\n%s" % osd_id)
+            
+            osd_info.setdefault(osd_id, {'bw': [], 'avg_delay': [], 'packet_loss': [], 'delay_jitter': [], 
+                                     'cpu': [], 'mem': [], 'pgs':[], 'r': [], 'w':[]})
+            print('osd_info setdefault, osd_info =', osd_info)
+        
+            bw = osd_info_dic[0]
+            # delay = osd_info_dic['delay']
+            avg_delay = osd_info_dic[1]
+            packet_loss = osd_info_dic[2]
+            delay_jitter = osd_info_dic[3]
+            cpu = osd_info_dic[4]
+            mem = osd_info_dic[5]
+            pgs = pgs_per_osd[osd_id]
+            r_io = osd_info_dic[6][osd_id]['r']
+            w_io = osd_info_dic[6][osd_id]['w']
+
+            print("osd_id %s: bw = %s, avg_delay = %s, packet_loss = %s, delay_jitter = %s, "\
+                  "cpu = %s, mem = %s, pgs = %s, r_io = %s, w_io = %s" \
+                % (osd_id, bw, avg_delay, packet_loss, delay_jitter, cpu, mem, pgs, r_io, w_io))
+
+            osd_info[osd_id]['bw'].append(bw)
+            # osd_info[osd_id]['delay'].append(delay)
+            osd_info[osd_id]['avg_delay'].append(avg_delay)
+            osd_info[osd_id]['packet_loss'].append(packet_loss)
+            osd_info[osd_id]['delay_jitter'].append(delay_jitter)
+            osd_info[osd_id]['cpu'].append(cpu)
+            osd_info[osd_id]['mem'].append(mem)
+            osd_info[osd_id]['pgs'].append(pgs)
+            osd_info[osd_id]['r'].append(r_io)
+            osd_info[osd_id]['w'].append(w_io)
+            print("osd_info[%s] = %s" % (osd_id, osd_info[osd_id]))
+
+    """
     #update osd_bw of the osd in osd_to_ip
     for osd_id in osd_to_ip.keys():
+        print("\nosd_id = %s" % osd_id)
         redis_ip = osd_to_ip[osd_id]
-    
-        if redis_ip is None or redis_ip in redis_ip_list:
-            continue
-        
-        redis_ip_list.append(redis_ip)
         
         redis_value = r.get(str(redis_ip))
         redis_value = redis_value.decode('utf-8')
@@ -110,7 +168,7 @@ def get_osd_info_dic(osd_to_ip, osd_info, times, optimize_range, need_optimize_o
                 continue
             
             print("redis_value == redis_ip_value[%s] is %s, wait..." % (redis_ip, redis_value))
-            time.sleep(2)
+            time.sleep(10)
         redis_ip_value[redis_ip] = redis_value
         #print("redis_value = %s" % redis_value)
         #print("redis_ip_value[%s] = %s" % (redis_ip, redis_ip_value[redis_ip]))
@@ -152,6 +210,7 @@ def get_osd_info_dic(osd_to_ip, osd_info, times, optimize_range, need_optimize_o
         osd_info[osd_id]['w'].append(w_io)
         print("osd_info[%s] = %s" % (osd_id, osd_info[osd_id]))
     #print('get_osd_info_dict....end\n')
+    """
     print('***get_osd_info_dic() done***')
 
 #optimize_range: ceph-node1、ceph-node2……
@@ -210,33 +269,38 @@ def main():
             % (optimize_mode, optimize_range, HP_flag, HW_flag))
     
     osd_info = {}
+    
     osd_to_ip = get_osd_id_to_ip_addr()   
     #osd_to_ip = {0: '192.168.207.184', 1: '192.168.207.181', 2: '192.168.207.183', 3: '192.168.207.182', 
                  #4: '192.168.207.184', 5: '192.168.207.182', 6: '192.168.207.183', 7: '192.168.207.181'}
-
+    print("osd_to_ip = %s" % osd_to_ip)
+    
     for _key, _value in osd_to_ip.items():
         osd_to_ip[_key] = ip_convert[osd_to_ip[_key]]
-
-    print("osd_to_ip = %s" % osd_to_ip)
-    optimize_osd_range, pgs_per_osd = get_osd_range(optimize_range)
-    print("optimize_osd_range = %s, pgs_per_osd = %s" % (optimize_osd_range, pgs_per_osd))
     
-    redis_ip_list = []
-    redis_ip_value = {} #duplicate results filter
-
+    redis_ip_value = {}
     for _key, _value in osd_to_ip.items():
         redis_ip_value.setdefault(_value, None)
 
+    ip_addr_all = []
+    for _key, _value in osd_to_ip.items():
+        if _value in ip_addr_all:
+            continue
+        ip_addr_all.append(_value)
+    print('ip_addr_all =', ip_addr_all)
+    
     while True:
-
+        optimize_osd_range, pgs_per_osd = get_osd_range(optimize_range)
+        print("optimize_osd_range = %s, pgs_per_osd = %s" % (optimize_osd_range, pgs_per_osd))
+    
         # evertime update's interval is 60s
         for i in range(times):
-            get_osd_info_dic(osd_to_ip, osd_info, times, optimize_range, optimize_osd_range, pgs_per_osd, redis_ip_list, redis_ip_value)
-            print("----------------osd info is----------------")
+            get_osd_info_dic(osd_to_ip, osd_info, times, optimize_range, optimize_osd_range, pgs_per_osd, ip_addr_all, redis_ip_value)
+            print("----------------osd info----------------")
             for key in osd_info.keys():
                 print('osd_%s: %s' % (key, osd_info[key]))
             time.sleep(7)
     
-    
+
 if __name__ == '__main__':
         main()
